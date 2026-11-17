@@ -72,3 +72,30 @@ def test_scores_below_display_floor_are_withheld():
     assert 0 < report.raw_percent < 20
     assert report.display == "*%" and report.percent is None
     assert not report.highlights_shown and not any(s.flagged for s in report.sentences)
+
+
+class SpunDetector:
+    """Stand-in second stage: a window is 'paraphrased' by its share of 'spun' sentences."""
+
+    name = "spun"
+    threshold = 0.5
+
+    def score(self, texts):
+        return [t.count("spun") / max(t.count("."), 1) for t in texts]
+
+
+def test_second_stage_splits_flagged_text_into_generated_and_paraphrased():
+    spun = "Moreover, spun robot synergy utilises a many-sided weave of whole-system models. "
+    text = HUMAN * 60 + "\n" + ROBOT * 60 + "\n" + spun * 60
+    plain = analyze(text, KeywordDetector())
+    assert not plain.paraphrase_checked and plain.paraphrased_percent is None
+
+    report = analyze(text, KeywordDetector(), paraphrase_detector=SpunDetector())
+    assert report.paraphrase_checked
+    assert report.generated_percent + report.paraphrased_percent == report.percent
+    assert report.generated_percent >= 20 and report.paraphrased_percent >= 20
+    categories = {s.category for s in report.sentences}
+    assert categories == {None, "generated", "paraphrased"}
+    assert all(s.category is None for s in report.sentences if not s.flagged)
+    last = report.sentences[-1]
+    assert last.flagged and last.category == "paraphrased"

@@ -15,6 +15,7 @@ class Config:
     min_words: int = 300  # below this no score is produced
     max_words: int = 30_000
     display_floor: int = 20  # 1..floor-1 % is shown as "*%" with no highlights
+    paraphrase_threshold: float = 0.5  # second stage: flagged text at/above this was reworded
 
 
 @dataclass
@@ -23,6 +24,7 @@ class SentenceResult:
     end: int
     score: float
     flagged: bool
+    category: str | None = None  # "generated" | "paraphrased" for flagged sentences
 
 
 @dataclass
@@ -36,13 +38,21 @@ class Report:
     display: str = "--"
     highlights_shown: bool = False
     raw_percent: float | None = None  # unrounded, never withheld; for evaluation
+    paraphrase_checked: bool = False
+    generated_percent: int | None = None  # AI-generated, wording untouched
+    paraphrased_percent: int | None = None  # AI-generated, then run through a paraphraser
     sentences: list[SentenceResult] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
-def analyze(text: str, detector: Detector, config: Config = Config()) -> Report:
+def analyze(
+    text: str,
+    detector: Detector,
+    config: Config = Config(),
+    paraphrase_detector: Detector | None = None,
+) -> Report:
     total_words = count_words(text)
     sentences = qualifying_sentences(text)
     qualifying_words = sum(s.words for s in sentences)
@@ -91,8 +101,26 @@ def analyze(text: str, detector: Detector, config: Config = Config()) -> Report:
         report.highlights_shown = percent > 0
         report.message = f"{percent}% of the qualifying text is likely AI-generated."
 
+    shown = report.highlights_shown
     report.sentences = [
-        SentenceResult(s.start, s.end, round(score, 4), hit and report.highlights_shown)
+        SentenceResult(s.start, s.end, round(score, 4), hit and shown, "generated" if hit and shown else None)
         for s, score, hit in zip(sentences, pooled, flagged)
     ]
+
+    if shown and paraphrase_detector is not None:
+        # Second stage, only over text already flagged as AI: was it reworded by a tool?
+        hot = [w for w in windows if any(flagged[w.first : w.last + 1])]
+        totals, counts = [0.0] * len(sentences), [0] * len(sentences)
+        for window, score in zip(hot, paraphrase_detector.score([w.text for w in hot])):
+            for i in range(window.first, window.last + 1):
+                totals[i] += score
+                counts[i] += 1
+        paraphrased_words = 0
+        for i, result in enumerate(report.sentences):
+            if result.flagged and totals[i] / counts[i] >= config.paraphrase_threshold:
+                result.category = "paraphrased"
+                paraphrased_words += sentences[i].words
+        report.paraphrase_checked = True
+        report.paraphrased_percent = min(percent, round(100 * paraphrased_words / qualifying_words))
+        report.generated_percent = percent - report.paraphrased_percent
     return report

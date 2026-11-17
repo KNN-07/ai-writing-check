@@ -9,6 +9,7 @@
     --bar: #ffffff; --strip: #f5f5f5; --canvas: #e4e4e4; --paper: #ffffff; --panel: #ffffff;
     --ink: #1b1b1f; --muted: #5f6470; --line: #d3d5da; --link: #0a5fb4; --accent: #1a84e8;
     --ai: #8cd9e8; --ai-strong: #35b9d3; --ai-ink: #0a2a33; --pill: #cdeee3; --pill-ink: #0d3b2b;
+    --para: #d3b3f5; --para-strong: #a56be8; --para-ink: #25103d;
     --shadow: 0 2px 8px rgba(0, 0, 0, .14);
   }
   @media (prefers-color-scheme: dark) {
@@ -16,6 +17,7 @@
       --bar: #1c1f25; --strip: #171a1f; --canvas: #0f1114; --paper: #23272e; --panel: #1c1f25;
       --ink: #e9ebef; --muted: #a2a8b4; --line: #343943; --link: #7db8f5; --accent: #4aa3f5;
       --ai: #1c6f82; --ai-strong: #35b9d3; --ai-ink: #eafaff; --pill: #1f4a3d; --pill-ink: #d5f3e8;
+      --para: #5b3a8c; --para-strong: #a56be8; --para-ink: #f4ebff;
       --shadow: 0 2px 10px rgba(0, 0, 0, .5);
     }
   }
@@ -55,7 +57,8 @@
   #doc .skip { color: var(--muted); }
   mark { background: var(--ai); color: var(--ai-ink); padding: .32em 0; scroll-margin-top: 80px;
          box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  mark.pulse { outline: 2px solid var(--ai-strong); }
+  mark.para { background: var(--para); color: var(--para-ink); }
+  mark.pulse { outline: 2px solid var(--ink); }
 
   aside { width: 440px; flex: none; overflow: auto; border-left: 1px solid var(--line); }
   .result { background: var(--panel); padding: 22px 24px 24px; box-shadow: var(--shadow); }
@@ -67,6 +70,7 @@
   .breakdown { position: relative; height: 30px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
   .breakdown button { position: absolute; top: 0; bottom: 0; min-width: 3px; padding: 0; border: 0;
                       background: var(--ai-strong); border-radius: 3px; }
+  .breakdown button.para { background: var(--para-strong); }
   .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; font-style: italic;
           margin: 4px 0 14px; }
   .category { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 12px; margin-top: 14px; }
@@ -165,14 +169,14 @@
       <div class="category">
         <span class="icon" style="background: var(--ai-strong)">
           <svg viewBox="0 0 24 24" fill="#06323f"><rect x="5" y="9" width="14" height="10" rx="3"/><rect x="11" y="4" width="2" height="5"/><circle cx="12" cy="4" r="1.6"/><circle cx="9.3" cy="13.5" r="1.4" fill="#8cd9e8"/><circle cx="14.7" cy="13.5" r="1.4" fill="#8cd9e8"/></svg></span>
-        <b>1&nbsp;&nbsp;AI-generated</b><span class="pct" id="pct"></span>
+        <b>1&nbsp;&nbsp;AI-generated only</b><span class="pct" id="pct"></span>
         <small>Likely AI-generated text from a large language model.</small>
       </div>
-      <div class="category off">
-        <span class="icon" style="background: var(--line)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg></span>
-        <b>2&nbsp;&nbsp;AI-paraphrased</b><span class="pct">n/a</span>
-        <small>Not checked. This tool has no paraphrase detector.</small>
+      <div class="category" id="pararow">
+        <span class="icon" id="paraicon" style="background: var(--para-strong)">
+          <svg viewBox="0 0 24 24" fill="#25103d"><rect x="5" y="9" width="14" height="10" rx="3"/><rect x="11" y="4" width="2" height="5"/><circle cx="12" cy="4" r="1.6"/><circle cx="9.3" cy="13.5" r="1.4" fill="#d3b3f5"/><circle cx="14.7" cy="13.5" r="1.4" fill="#d3b3f5"/></svg></span>
+        <b>2&nbsp;&nbsp;AI-generated, then AI-paraphrased</b><span class="pct" id="parapct"></span>
+        <small id="paranote"></small>
       </div>
     </div>
     <div class="cards">
@@ -220,15 +224,16 @@ function renderDocument(text, sentences) {
   let cursor = 0, run = null;
   for (const s of sentences) {
     const gap = text.slice(cursor, s.start);
-    if (s.flagged && run && !gap.includes("\n")) {
-      add("mark", "", cursor, s.end).title = "AI likelihood " + Math.round(s.score * 100) + "%";
+    const cls = s.category === "paraphrased" ? "para" : "";
+    if (s.flagged && run && run.cls === cls && !gap.includes("\n")) {
+      add("mark", cls, cursor, s.end).title = "AI likelihood " + Math.round(s.score * 100) + "%";
       run.end = s.end;
     } else {
       add("span", "skip", cursor, s.start);
-      const el = add(s.flagged ? "mark" : "span", s.flagged ? "first" : "", s.start, s.end);
+      const el = add(s.flagged ? "mark" : "span", s.flagged ? cls : "", s.start, s.end);
       if (s.flagged) {
         el.title = "AI likelihood " + Math.round(s.score * 100) + "%";
-        run = { start: s.start, end: s.end, el };
+        run = { start: s.start, end: s.end, el, cls };
         runs.push(run);
       } else run = null;
     }
@@ -244,6 +249,7 @@ function renderBreakdown(runs, length) {
   for (const run of runs) {
     const seg = document.createElement("button");
     seg.type = "button";
+    seg.className = run.cls;
     seg.title = "Jump to this passage";
     seg.style.left = (100 * run.start / length) + "%";
     seg.style.width = (100 * (run.end - run.start) / length) + "%";
@@ -266,7 +272,14 @@ function showReport(data, name) {
   $("message").textContent = data.status === "ok" && shown
     ? "The percentage is the share of qualifying prose that is likely AI-generated."
     : data.message;
-  $("pct").textContent = shown ? data.display : (data.status === "ok" ? "*%" : "--");
+  const split = shown && data.paraphrase_checked;
+  $("pct").textContent = split ? data.generated_percent + "%" : shown ? data.display : (data.status === "ok" ? "*%" : "--");
+  $("parapct").textContent = split ? data.paraphrased_percent + "%" : "n/a";
+  $("paranote").textContent = data.paraphrase_checked || !shown
+    ? "Likely AI-generated text that was then reworded by a paraphrasing tool."
+    : "Not checked: no paraphrase model is configured.";
+  $("pararow").classList.toggle("off", !split);
+  $("paraicon").style.background = split ? "var(--para-strong)" : "var(--line)";
   $("total").textContent = fmt(data.total_words);
   $("sentences").textContent = fmt(data.sentences.length);
   $("flagged").textContent = fmt(data.sentences.filter((s) => s.flagged).length);

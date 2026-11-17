@@ -76,15 +76,41 @@ AI model), share of documents flagged at 20% or more:
 Rerun the script before changing model or threshold; raw scores are not comparable
 between models.
 
+## AI-paraphrased text (experimental, off by default)
+
+Turnitin reports a second category: AI text that was then reworded by a paraphrasing
+tool. This repo has the plumbing for it, but no model good enough to ship.
+
+- `scripts/train_paraphrase.py` (needs a GPU) paraphrases LLM-written documents, trains
+  a second-stage classifier (original AI text vs paraphrased AI text) and tests it.
+- Point `AICHECK_PARAPHRASE_MODEL` at the folder it saves and the report splits the
+  score into "AI-generated only" and "AI-generated, then AI-paraphrased" (purple).
+
+What one run measured, on 150 held-out topics:
+
+| Test documents | Still flagged as AI by stage 1 | Windows stage 2 calls "paraphrased" |
+| --- | ---: | ---: |
+| AI, original | 96.0% | 0.4% |
+| AI, reworded by the T5 paraphraser it was trained on | 80.5% | 99.0% |
+| AI, reworded by a chat model it never saw (Qwen2.5-1.5B) | 97.8% | 12.0% |
+| Human | 0.7% | 21.2% (never reaches stage 2 unless stage 1 flags it) |
+
+So the classifier learned to recognise one tool, not paraphrasing in general. Making
+it real needs training data from many paraphrasers, with some held out for testing.
+The one public three-class model found (`MUSKAN17/AI-DETECTOR`) labelled 87.5% of
+*un*-paraphrased AI text as paraphrased, so it is not usable either.
+
 ## Known limits
 
 - The false positive figure rests on 299 documents (one false positive), so the true
   rate could plausibly be anywhere up to about 2%.
 - Mixed documents are under-counted: a half-human, half-GPT-4o document scored 21%,
   and a 150-word AI passage inside 1,400 human words was not flagged at all.
-- Not measured: paraphrased or "humanized" AI text, non-native English writers,
+- Paraphrasing weakens detection: a sentence-level paraphraser cut the detection rate
+  from 96% to 80.5%. Text reworded by hand is not measured at all.
+- Not measured: "humanizer" tools, non-native English writers,
   other languages, and models newer than the 2024 ones in the test set.
-- Turnitin's separate AI-paraphrasing category is not implemented.
+- The AI-paraphrased category is experimental and off by default (see above).
 
 A result here is a statistical estimate, not evidence of misconduct.
 

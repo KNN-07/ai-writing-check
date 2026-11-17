@@ -1,6 +1,7 @@
 """Web app: `uvicorn aicheck.server:app` then open http://127.0.0.1:8000"""
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,6 +22,14 @@ app = FastAPI(title="AI Writing Check")
 @lru_cache(maxsize=1)
 def get_detector() -> Detector:
     return HFDetector()
+
+
+@lru_cache(maxsize=1)
+def get_paraphrase_detector() -> Detector | None:
+    """Optional second stage: set AICHECK_PARAPHRASE_MODEL to a model trained by
+    scripts/train_paraphrase.py (label 1 = AI-paraphrased)."""
+    model = os.environ.get("AICHECK_PARAPHRASE_MODEL")
+    return HFDetector(model, ai_label=1) if model else None
 
 
 @app.get("/")
@@ -46,5 +55,5 @@ async def analyze_endpoint(
         raise HTTPException(400, "Provide some text or upload a file.")
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    report = await run_in_threadpool(lambda: analyze(text, get_detector()))
+    report = await run_in_threadpool(lambda: analyze(text, get_detector(), paraphrase_detector=get_paraphrase_detector()))
     return {"text": text, **report.to_dict()}
