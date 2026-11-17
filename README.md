@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://colab.research.google.com/github/KNN-07/ai-writing-check/blob/main/notebooks/host_on_colab.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
   <img alt="FastAPI" src="https://img.shields.io/badge/server-FastAPI-009688">
   <img alt="Runs on CPU" src="https://img.shields.io/badge/runs%20on-CPU-555">
@@ -26,6 +27,16 @@ an open model, and runs entirely on your own machine.
 - **Cautious by design**: no score under 300 words, low scores are withheld, and the
   threshold is tuned for under 1% false positives.
 - **Swappable model**: any Hugging Face human/AI text classifier, with a script to measure it.
+
+## Try it without installing anything
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/KNN-07/ai-writing-check/blob/main/notebooks/host_on_colab.ipynb)
+
+Open the notebook and choose **Runtime → Run all**. One cell installs the app on a free
+Colab machine, starts it and prints a public `trycloudflare.com` address (a Cloudflare
+quick tunnel; no account or token needed). It takes about two minutes the first time.
+
+The address works while the cell is running, and anyone who has it can use the app.
 
 ## Quick start
 
