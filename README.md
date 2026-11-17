@@ -15,7 +15,7 @@ highlighted. It follows the method Turnitin describes publicly for its detector,
 an open model, and runs entirely on your own machine.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Report for a sample essay: 42% likely AI-generated, with the flagged sentences highlighted" width="900">
+  <img src="docs/screenshot.png" alt="Report view: the document with flagged sentences highlighted, beside a panel showing 42% detected as AI and a submission breakdown" width="100%">
 </p>
 
 ## Features

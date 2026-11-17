@@ -6,118 +6,281 @@
 <title>AI Writing Check</title>
 <style>
   :root {
-    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2430; --muted: #5d6878; --line: #dde2ea;
-    --accent: #0b6e99; --accent-ink: #ffffff; --mark: #b9ecf7; --mark-ink: #06323f;
-    --warn-bg: #fff6dc; --warn-ink: #6b4e00; --track: #e6eaf0;
+    --bar: #ffffff; --strip: #f5f5f5; --canvas: #e4e4e4; --paper: #ffffff; --panel: #ffffff;
+    --ink: #1b1b1f; --muted: #5f6470; --line: #d3d5da; --link: #0a5fb4; --accent: #1a84e8;
+    --ai: #8cd9e8; --ai-strong: #35b9d3; --ai-ink: #0a2a33; --pill: #cdeee3; --pill-ink: #0d3b2b;
+    --shadow: 0 2px 8px rgba(0, 0, 0, .14);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #12161c; --panel: #1b212a; --ink: #e7ecf3; --muted: #9aa6b6; --line: #2e3744;
-      --accent: #4fc3e8; --accent-ink: #06222c; --mark: #135a6e; --mark-ink: #e6fbff;
-      --warn-bg: #3a2f10; --warn-ink: #f3dc9a; --track: #2a323e;
+      --bar: #1c1f25; --strip: #171a1f; --canvas: #0f1114; --paper: #23272e; --panel: #1c1f25;
+      --ink: #e9ebef; --muted: #a2a8b4; --line: #343943; --link: #7db8f5; --accent: #4aa3f5;
+      --ai: #1c6f82; --ai-strong: #35b9d3; --ai-ink: #eafaff; --pill: #1f4a3d; --pill-ink: #d5f3e8;
+      --shadow: 0 2px 10px rgba(0, 0, 0, .5);
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; padding: 28px 16px 60px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
-  textarea { width: 100%; min-height: 220px; resize: vertical; padding: 12px; border-radius: 8px;
-             border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
-  button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
-           padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer; }
-  button:disabled { opacity: .55; cursor: progress; }
-  .count { color: var(--muted); font-size: .9rem; margin-left: auto; }
-  #error { color: #c0392b; margin-top: 12px; }
-  #result { display: none; margin-top: 22px; gap: 18px; grid-template-columns: 280px 1fr; }
-  #result.on { display: grid; }
-  @media (max-width: 760px) { #result.on { grid-template-columns: 1fr; } }
-  .score { font-size: 3.4rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-  .bar { height: 10px; background: var(--track); border-radius: 5px; margin: 14px 0; overflow: hidden; }
-  .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
-  dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 14px 0 0; font-size: .92rem; }
-  dt { color: var(--muted); } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-  .note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 12px;
-          font-size: .88rem; margin-top: 16px; }
-  .legend { font-size: .88rem; color: var(--muted); margin-top: 14px; }
-  mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 1px 0; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); display: flex; flex-direction: column;
+         font: 16px/1.5 "Noto Sans", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  header { background: var(--bar); border-bottom: 1px solid var(--line); display: flex; align-items: center;
+           gap: 16px; padding: 10px 20px; min-height: 62px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
+  .brand svg { width: 26px; height: 26px; flex: none; }
+  .title { flex: 1; text-align: center; min-width: 0; }
+  .title b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title span { color: var(--muted); font-size: .88rem; }
+  .tools { display: flex; gap: 6px; }
+  .tool { background: none; border: 0; border-radius: 8px; padding: 4px 10px; font-size: .82rem;
+          display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tool:hover { background: var(--strip); }
+  .tool svg { width: 20px; height: 20px; }
+
+  .strip { background: var(--strip); border-bottom: 1px solid var(--line); display: flex; justify-content: center;
+           gap: 34px; padding: 0 16px; }
+  .tab { padding: 10px 2px 9px; border-bottom: 3px solid transparent; font-weight: 600; white-space: nowrap; }
+  .tab.active { border-color: var(--accent); }
+  .tab.plain { font-weight: 400; color: var(--muted); }
+  .pill { display: inline-block; margin-left: 8px; padding: 1px 10px; border-radius: 12px; font-size: .82rem;
+          background: var(--line); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tab.active .pill { background: var(--pill); color: var(--pill-ink); }
+
+  main { flex: 1; min-height: 0; display: flex; }
+  .canvas { flex: 1; min-width: 0; overflow: auto; padding: 44px 24px 96px; position: relative; }
+  .paper { background: var(--paper); max-width: 820px; margin: 0 auto; padding: 64px 76px; box-shadow: var(--shadow);
+           font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: 1.12rem; line-height: 2.5; }
   #doc { white-space: pre-wrap; overflow-wrap: anywhere; }
   #doc .skip { color: var(--muted); }
-  .model { font-size: .8rem; color: var(--muted); margin-top: 12px; overflow-wrap: anywhere; }
+  mark { background: var(--ai); color: var(--ai-ink); padding: .32em 0; scroll-margin-top: 80px;
+         box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  mark.pulse { outline: 2px solid var(--ai-strong); }
+
+  aside { width: 440px; flex: none; overflow: auto; border-left: 1px solid var(--line); }
+  .result { background: var(--panel); padding: 22px 24px 24px; box-shadow: var(--shadow); }
+  .result h2 { margin: 0 0 6px; font-size: 1.55rem; }
+  .result p { margin: 0; }
+  .result hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+  h3 { margin: 0 0 12px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+  h3 svg { width: 20px; height: 20px; }
+  .breakdown { position: relative; height: 30px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .breakdown button { position: absolute; top: 0; bottom: 0; min-width: 3px; padding: 0; border: 0;
+                      background: var(--ai-strong); border-radius: 3px; }
+  .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; font-style: italic;
+          margin: 4px 0 14px; }
+  .category { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 12px; margin-top: 14px; }
+  .category .icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
+  .category .icon svg { width: 20px; height: 20px; }
+  .category b { font-size: 1.02rem; }
+  .category small { grid-column: 2; color: var(--muted); font-size: .9rem; }
+  .category .pct { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .category.off { opacity: .7; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 24px 24px 8px; }
+  .card { background: var(--panel); border-radius: 8px; box-shadow: var(--shadow); padding: 16px 8px; text-align: center; }
+  .card b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+  .card span { color: var(--muted); font-size: .84rem; }
+  details { padding: 14px 28px 30px; font-size: .88rem; }
+  summary { color: var(--link); font-weight: 600; font-size: 1rem; cursor: pointer; margin-bottom: 10px; }
+  .model { color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+
+  .dock { position: fixed; left: 20px; bottom: 18px; background: var(--panel); border-radius: 8px;
+          box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: .92rem; }
+  .dock button { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: none;
+                 font-size: 1.1rem; line-height: 1; }
+  .dock .sep { width: 1px; align-self: stretch; background: var(--line); }
+
+  /* submit screen */
+  #start { max-width: 760px; margin: 0 auto; background: var(--paper); box-shadow: var(--shadow);
+           border-radius: 8px; padding: 30px; }
+  #start h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  #start p { margin: 0 0 18px; color: var(--muted); }
+  textarea { width: 100%; min-height: 260px; resize: vertical; padding: 12px; border-radius: 6px;
+             border: 1px solid var(--line); background: var(--strip); color: var(--ink); font: inherit; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 14px; }
+  .row .count { margin-left: auto; color: var(--muted); font-size: .9rem; }
+  .go { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 10px 22px; font-weight: 600; }
+  .go:disabled { opacity: .6; cursor: progress; }
+  #error { color: #c62f2f; margin-top: 12px; }
+
+  body:not(.report) .report-only { display: none !important; }
+  body.report #start { display: none; }
+  @media (max-width: 900px) {
+    body { height: auto; } main { flex-direction: column; }
+    .canvas { overflow: visible; padding: 20px 12px 90px; } .paper { padding: 28px 22px; line-height: 2.1; }
+    aside { width: auto; border-left: 0; overflow: visible; } .tool span { display: none; }
+  }
+  @media print { header .tools, .strip, aside, .dock { display: none !important; } .canvas { padding: 0; overflow: visible; }
+                 .paper { box-shadow: none; } body { height: auto; background: #fff; } }
 </style>
 </head>
 <body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="2" y="2" width="22" height="22" rx="5" fill="#35b9d3"/>
+      <path d="M7 9h12M7 13h12M7 17h7" stroke="#06323f" stroke-width="2.2" stroke-linecap="round"/></svg>
+    AI Writing Check
+  </div>
+  <div class="title report-only"><b id="docname"></b><span id="docmeta"></span></div>
+  <div class="tools report-only">
+    <button class="tool" id="print" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>
+      <span>Download</span></button>
+    <button class="tool" id="again" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>New check</span></button>
+  </div>
+</header>
+
+<div class="strip report-only">
+  <div class="tab active">AI Writing <span class="pill" id="tabscore"></span></div>
+  <div class="tab plain">Qualifying text <span class="pill" id="tabwords"></span></div>
+</div>
+
 <main>
-  <h1>AI Writing Check</h1>
-  <p class="sub">Estimates how much of a document's prose was likely written by an AI model.</p>
+  <div class="canvas">
+    <form id="start">
+      <h1>Check a document</h1>
+      <p>Paste at least 300 words of prose, or upload a .txt, .md, .docx or .pdf file.</p>
+      <textarea id="text" name="text" placeholder="Paste the document text here"></textarea>
+      <div class="row">
+        <input type="file" id="file" accept=".txt,.md,.docx,.pdf">
+        <span class="count" id="count">0 words</span>
+        <button class="go" id="go" type="submit">Check document</button>
+      </div>
+      <div id="error" role="alert"></div>
+    </form>
+    <div class="paper report-only"><div id="doc"></div></div>
+  </div>
 
-  <form id="form" class="panel">
-    <textarea id="text" name="text" placeholder="Paste at least 300 words of prose, or upload a file below."></textarea>
-    <div class="row">
-      <input type="file" id="file" name="file" accept=".txt,.md,.docx,.pdf">
-      <span class="count" id="count">0 words</span>
-      <button id="go" type="submit">Check document</button>
+  <aside class="report-only">
+    <div class="result">
+      <h2 id="headline"></h2>
+      <p id="message"></p>
+      <hr>
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Submission Breakdown</h3>
+      <div class="breakdown" id="breakdown"></div>
+      <div class="ends"><span>start</span><span>end</span></div>
+      <div class="category">
+        <span class="icon" style="background: var(--ai-strong)">
+          <svg viewBox="0 0 24 24" fill="#06323f"><rect x="5" y="9" width="14" height="10" rx="3"/><rect x="11" y="4" width="2" height="5"/><circle cx="12" cy="4" r="1.6"/><circle cx="9.3" cy="13.5" r="1.4" fill="#8cd9e8"/><circle cx="14.7" cy="13.5" r="1.4" fill="#8cd9e8"/></svg></span>
+        <b>1&nbsp;&nbsp;AI-generated</b><span class="pct" id="pct"></span>
+        <small>Likely AI-generated text from a large language model.</small>
+      </div>
+      <div class="category off">
+        <span class="icon" style="background: var(--line)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></svg></span>
+        <b>2&nbsp;&nbsp;AI-paraphrased</b><span class="pct">n/a</span>
+        <small>Not checked. This tool has no paraphrase detector.</small>
+      </div>
     </div>
-    <div id="error" role="alert"></div>
-  </form>
-
-  <section id="result">
-    <aside class="panel">
-      <div class="score" id="score">--</div>
-      <div class="bar"><i id="fill"></i></div>
-      <div id="message"></div>
-      <dl>
-        <dt>Total words</dt><dd id="total"></dd>
-        <dt>Qualifying prose words</dt><dd id="qualifying"></dd>
-        <dt>Sentences analysed</dt><dd id="sentences"></dd>
-        <dt>Sentences highlighted</dt><dd id="flagged"></dd>
-      </dl>
-      <div class="legend"><mark>Highlighted</mark> likely AI-generated &nbsp;·&nbsp;
-        <span style="opacity:.7">grey</span> not analysed (headings, lists, short lines)</div>
-      <div class="note">This is a statistical estimate and it can be wrong in both directions.
-        Treat it as a prompt for a conversation, never as proof of misconduct.</div>
+    <div class="cards">
+      <div class="card"><b id="total"></b><span>words</span></div>
+      <div class="card"><b id="sentences"></b><span>sentences analysed</span></div>
+      <div class="card"><b id="flagged"></b><span>highlighted</span></div>
+    </div>
+    <details open>
+      <summary>Disclaimer</summary>
+      This assessment is a statistical estimate of which text might have been produced by a generative AI
+      tool. It can be wrong in both directions: it may flag human writing and it may miss AI writing,
+      especially text that was paraphrased, translated or rewritten. It must not be used as the sole basis
+      for action against a writer. Human judgment and the relevant academic policy decide whether any
+      misconduct has occurred.
       <div class="model" id="model"></div>
-    </aside>
-    <article class="panel"><div id="doc"></div></article>
-  </section>
+    </details>
+  </aside>
 </main>
+
+<div class="dock report-only">
+  <span id="dockwords"></span><span class="sep"></span>
+  <button type="button" id="zoomout" aria-label="Zoom out">−</button>
+  <span id="zoom">100%</span>
+  <button type="button" id="zoomin" aria-label="Zoom in">+</button>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const words = (s) => (s.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
+const countWords = (s) => (s.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
+const fmt = (n) => n.toLocaleString();
 
-$("text").addEventListener("input", () => {
-  $("count").textContent = words($("text").value).toLocaleString() + " words";
-});
+$("text").addEventListener("input", () => { $("count").textContent = fmt(countWords($("text").value)) + " words"; });
 
 function renderDocument(text, sentences) {
-  const doc = $("doc");
+  const doc = $("doc"), runs = [];
   doc.replaceChildren();
-  const add = (tag, cls, from, to, title) => {
-    if (to <= from) return;
+  const add = (tag, cls, from, to) => {
+    if (to <= from) return null;
     const el = document.createElement(tag);
     if (cls) el.className = cls;
-    if (title) el.title = title;
     el.textContent = text.slice(from, to);
     doc.append(el);
+    return el;
   };
-  let cursor = 0;
+  let cursor = 0, run = null;
   for (const s of sentences) {
-    add("span", "skip", cursor, s.start);
-    add(s.flagged ? "mark" : "span", "", s.start, s.end, "AI likelihood " + Math.round(s.score * 100) + "%");
+    const gap = text.slice(cursor, s.start);
+    if (s.flagged && run && !gap.includes("\n")) {
+      add("mark", "", cursor, s.end).title = "AI likelihood " + Math.round(s.score * 100) + "%";
+      run.end = s.end;
+    } else {
+      add("span", "skip", cursor, s.start);
+      const el = add(s.flagged ? "mark" : "span", s.flagged ? "first" : "", s.start, s.end);
+      if (s.flagged) {
+        el.title = "AI likelihood " + Math.round(s.score * 100) + "%";
+        run = { start: s.start, end: s.end, el };
+        runs.push(run);
+      } else run = null;
+    }
     cursor = s.end;
   }
   add("span", "skip", cursor, text.length);
+  return runs;
 }
 
-$("form").addEventListener("submit", async (event) => {
+function renderBreakdown(runs, length) {
+  const bar = $("breakdown");
+  bar.replaceChildren();
+  for (const run of runs) {
+    const seg = document.createElement("button");
+    seg.type = "button";
+    seg.title = "Jump to this passage";
+    seg.style.left = (100 * run.start / length) + "%";
+    seg.style.width = (100 * (run.end - run.start) / length) + "%";
+    seg.addEventListener("click", () => {
+      run.el.scrollIntoView({ behavior: "smooth", block: "center" });
+      run.el.classList.add("pulse");
+      setTimeout(() => run.el.classList.remove("pulse"), 1200);
+    });
+    bar.append(seg);
+  }
+}
+
+function showReport(data, name) {
+  const shown = data.percent !== null;
+  $("docname").textContent = name;
+  $("docmeta").textContent = fmt(data.total_words) + " words";
+  $("tabscore").textContent = data.display;
+  $("tabwords").textContent = fmt(data.qualifying_words) + " words";
+  $("headline").textContent = data.status === "ok" ? data.display + " detected as AI" : "No result";
+  $("message").textContent = data.status === "ok" && shown
+    ? "The percentage is the share of qualifying prose that is likely AI-generated."
+    : data.message;
+  $("pct").textContent = shown ? data.display : (data.status === "ok" ? "*%" : "--");
+  $("total").textContent = fmt(data.total_words);
+  $("sentences").textContent = fmt(data.sentences.length);
+  $("flagged").textContent = fmt(data.sentences.filter((s) => s.flagged).length);
+  $("dockwords").textContent = fmt(data.total_words) + " words";
+  $("model").textContent = "Model: " + data.model;
+  renderBreakdown(renderDocument(data.text, data.sentences), Math.max(data.text.length, 1));
+  document.body.classList.add("report");
+  document.querySelector(".canvas").scrollTop = 0;
+}
+
+$("start").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("error").textContent = "";
-  const body = new FormData();
-  const file = $("file").files[0];
+  const body = new FormData(), file = $("file").files[0];
   if (file) body.append("file", file); else body.append("text", $("text").value);
   $("go").disabled = true;
   $("go").textContent = "Checking…";
@@ -125,17 +288,7 @@ $("form").addEventListener("submit", async (event) => {
     const response = await fetch("/api/analyze", { method: "POST", body });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Request failed");
-    $("score").textContent = data.display;
-    $("fill").style.width = (data.percent ?? 0) + "%";
-    $("message").textContent = data.message;
-    $("total").textContent = data.total_words.toLocaleString();
-    $("qualifying").textContent = data.qualifying_words.toLocaleString();
-    $("sentences").textContent = data.sentences.length.toLocaleString();
-    $("flagged").textContent = data.sentences.filter((s) => s.flagged).length.toLocaleString();
-    $("model").textContent = "Model: " + data.model;
-    renderDocument(data.text, data.sentences);
-    $("result").classList.add("on");
-    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    showReport(data, file ? file.name : "Pasted text");
   } catch (error) {
     $("error").textContent = error.message;
   } finally {
@@ -143,6 +296,18 @@ $("form").addEventListener("submit", async (event) => {
     $("go").textContent = "Check document";
   }
 });
+
+$("again").addEventListener("click", () => document.body.classList.remove("report"));
+$("print").addEventListener("click", () => window.print());
+
+let zoom = 100;
+const setZoom = (value) => {
+  zoom = Math.min(200, Math.max(60, value));
+  $("zoom").textContent = zoom + "%";
+  document.querySelector(".paper").style.fontSize = (1.12 * zoom / 100) + "rem";
+};
+$("zoomin").addEventListener("click", () => setZoom(zoom + 10));
+$("zoomout").addEventListener("click", () => setZoom(zoom - 10));
 </script>
 </body>
 </html>
